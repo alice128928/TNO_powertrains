@@ -1,0 +1,8 @@
+InitializationSettings:
+  config_id: config 1
+solar_panels:
+- altitude: 0
+  latitude: 120.0
+  longitude: 120.0
+  number_of_panels: 1
+  surface_tilt: 35
