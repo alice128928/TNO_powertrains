@@ -1,4 +1,4 @@
-# energy_price_reader.py
+# price_market.py
 # ----------------------
 # This module provides utility functions to:
 # 1. Read hourly energy prices from an Excel file (e.g. spot market data)
@@ -50,7 +50,7 @@ def give_price(time_index: int) -> float:
     - float: Price in €/Wh (converted from €/MWh by dividing by 1000)
     """
     # Read the full energy price data
-    price_data = read_energy_prices('data/EnergyPriceManyDays.xlsx')
+    price_data = read_energy_prices('../TNO_project_version2/data/EnergyPriceManyDays.xlsx')
 
     # Convert €/MWh to €/Wh (or k€/MWh to €/kWh depending on input unit)
     price_wh = price_data['price'].iloc[time_index] / 1000

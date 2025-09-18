@@ -1,4 +1,4 @@
-# electric_grid_model.py
+# grid.py
 # ----------------------
 # This module simulates power flow in an electricity grid using a predefined grid topology and active power data.
 # It integrates with a power flow engine (via PowerGridModel) and returns voltage profiles for all consumers.

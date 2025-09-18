@@ -1,8 +1,8 @@
 InitializationSettings:
   cars:
-  - arrival_time: '18:00'
+  - arrival_time: '11:00'
     battery_capacity: 25000.0
     charging_port: 11000.0
-    departure_time: '22:00'
+    departure_time: '19:00'
     id: A
   config_id: config 1

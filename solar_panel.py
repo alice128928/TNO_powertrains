@@ -1,4 +1,3 @@
-import os
 import yaml
 import numpy as np
 import pandas as pd
@@ -9,12 +8,12 @@ from pvlib.temperature import TEMPERATURE_MODEL_PARAMETERS
 
 # --- Global cache ---
 _weather_data = None
-_pv_system = None
-_location = None
-_number_of_panels = None
+_pv_systems = None
+_locations = None
+_number_of_panels_list = None
 
-def get_weather_data(filename='data/2016_Dc_Coordinates_(1).xlsx'):
-    """Load and preprocess solar weather data (resampled to 1h, first 480 rows)."""
+
+def get_weather_data(filename='data/data_sun.xlsx'):
     df = pd.read_excel(filename).drop(0)
     df.columns = df.iloc[0]
     df = df.drop(1)
@@ -41,18 +40,28 @@ def get_weather_data(filename='data/2016_Dc_Coordinates_(1).xlsx'):
 
 
 def load_panel_config(path='configurations/solar_config.yaml'):
-    """Load solar panel configuration from separate YAML file."""
     with open(path, 'r') as f:
         config = yaml.safe_load(f)
     return config.get("solar_panels", [])
 
 
 def create_pv_system(panel_data: dict):
-    """Create PVSystem and Location objects."""
     module_db = retrieve_sam("cecmod")
     inverter_db = retrieve_sam("cecinverter")
-    module = module_db["Znshine_PV_Tech_ZXP6_72_295_P"]
-    inverter = inverter_db["ABB__MICRO_0_3_I_OUTD_US_208__208V_"]
+
+    module_id = panel_data["module_id"].strip()
+    inverter_id = panel_data["inverter_id"].strip()
+
+    # --- Validate entries
+    if module_id not in module_db.columns:
+        raise ValueError(f"Module ID '{module_id}' not found in CEC module database.")
+
+    if inverter_id not in inverter_db.columns:
+        raise ValueError(f"Inverter ID '{inverter_id}' not found in CEC inverter database.")
+
+    module = module_db[module_id]
+    inverter = inverter_db[inverter_id]
+
     temp_model = TEMPERATURE_MODEL_PARAMETERS["sapm"]["open_rack_glass_glass"]
 
     location = Location(
@@ -73,40 +82,41 @@ def create_pv_system(panel_data: dict):
 
 
 def init_solar_model():
-    """Initialize the solar model configuration and cache components."""
-    global _weather_data, _pv_system, _location, _number_of_panels
+    global _weather_data, _pv_systems, _locations, _number_of_panels_list
 
     if _weather_data is None:
         _weather_data = get_weather_data()
 
     panel_config = load_panel_config()
-    panel_data = panel_config[0]  # support for list of solar types
 
-    _pv_system, _location, _number_of_panels = create_pv_system(panel_data)
+    _pv_systems = []
+    _locations = []
+    _number_of_panels_list = []
+
+    for panel_data in panel_config:
+        system, location, number_of_panels = create_pv_system(panel_data)
+        _pv_systems.append(system)
+        _locations.append(location)
+        _number_of_panels_list.append(number_of_panels)
 
 
 def solar_Power(time_index: int) -> float:
-    """
-    Compute solar power output dynamically for the given timestep.
-
-    Args:
-        time_index (int): Index of the time step (0–479)
-
-    Returns:
-        float: Total solar power output in Watts
-    """
-    global _weather_data, _pv_system, _location, _number_of_panels
+    global _weather_data, _pv_systems, _locations, _number_of_panels_list
 
     if time_index < 0 or time_index >= len(_weather_data):
         return 0.0
 
+    total_power = 0.0
     weather_step = _weather_data.iloc[[time_index]]
-    mc = ModelChain(_pv_system, _location, aoi_model="physical")
-    mc.run_model(weather=weather_step)
 
-    ac_output = mc.results.ac.iloc[0] if not mc.results.ac.empty else 0.0
-    return ac_output * _number_of_panels
+    for system, location, num_panels in zip(_pv_systems, _locations, _number_of_panels_list):
+        mc = ModelChain(system, location, aoi_model="physical")
+        mc.run_model(weather=weather_step)
+        ac_output = mc.results.ac.iloc[0] if not mc.results.ac.empty else 0.0
+        total_power += ac_output * num_panels
+
+    return total_power
 
 
-# Initialize the system once at import
+# Initialize once on import
 init_solar_model()

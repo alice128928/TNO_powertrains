@@ -73,6 +73,18 @@ class BatteryStorage:
         """
         return self.SoC
 
+    def get_soc_percentage(self):
+        """
+        Get the current state of charge (SoC) of the battery.
+
+        Returns:
+        - percentage
+        """
+        a = (self.SoC/ self.capacity)*100
+        return a
+
+
+
     def get_remaining_capacity(self):
         """
         Get the remaining unused capacity of the battery.

@@ -1,8 +1,9 @@
 InitializationSettings:
   config_id: config 1
   configs:
-  - grid_capacity: 10000.0
-    initial_money: 30.0
+  - add_load: 10.0
+    grid_capacity: 10000.0
+    initial_money: 10.0
     price_high: 0.07
     price_low: 0.01
     storage_capacity: 6500.0

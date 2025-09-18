@@ -1,5 +1,4 @@
-def ev_state(time_step, avail, batteries, current_battery):
-    """
+"""
     Checks charging availability status for each car at a given time_step.
 
     Parameters:
@@ -16,21 +15,21 @@ def ev_state(time_step, avail, batteries, current_battery):
         status is an array, if there is one car it will return 1, 0 or 5. if there are more cars it will return
         an array with 0s,1s and 5s depending on the status of each car.
     """
+def ev_state(time_step, avail, batteries, current_battery):
     status = []
-
     for i in range(len(avail)):
-
+        epsilon = 1e-3
         car_status = avail[i][time_step]
-        prev_charge = current_battery[i][time_step - 1] if time_step > 0 else 0
+        current_charge = current_battery[i][time_step]
 
-        if car_status == 2: # 2 means car is away
+        if car_status == 2:
             status.append(0)
-        elif car_status == 3: # means car is at the charging hub
-            if prev_charge < batteries[i]: # it means the battery of the car is still empty
+        elif car_status == 3:
+            if current_charge < batteries[i] - epsilon:
                 status.append(1)
             else:
-                status.append(5) # it means the battery of the car is full
+                status.append(5)
         else:
-            status.append(0) # safe check
+            status.append(0)
 
     return status

@@ -1,8 +1,22 @@
 
+# run_simulation.py
+# -------------------
+# This script performs the full setup and execution of an energy system co-simulation.
+#
+# 💡 Functionality:
+# - Collects user inputs for wind turbines, solar panels, EVs, and system-level parameters
+# - Saves configurations to YAML files
+# - Loads and initializes models (wind, solar, EV, battery, controller, grid, pricing)
+# - Executes time-step-based co-simulation using a Manager class
+#
+# 📂 Output:
+# - YAML files in ./configurations/
+# - Simulation managed via the cosim_framework.Manager
 from functools import partial
 import yaml
 import os
 from datetime import datetime
+
 
 from controller_ems import controller_multiple_cars
 from cosim_framework import Manager, Model

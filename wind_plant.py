@@ -1,5 +1,21 @@
 import os
-
+# wind_plant.py
+# ------------------
+# This script models wind energy output based on user-defined wind turbine configurations
+# and real weather data using the `windpowerlib` package.
+#
+# 💡 Functionality:
+# - Loads turbine configuration from a YAML file
+# - Reads and resamples hourly weather data
+# - Constructs a wind farm using WindTurbine objects
+# - Computes wind power output for a given time step
+#
+# 📂 Input:
+# - ./data/weather.csv — Weather data with wind speeds, pressure, etc.
+# - ./configurations/turbine_config.yaml — User-defined wind turbine parameters
+#
+# 📤 Output:
+# - `power_wind(t)` — Returns wind farm output at hour t (0–479) in watts
 import numpy as np
 import yaml
 import requests
@@ -9,33 +25,91 @@ from windpowerlib import WindTurbine, WindFarm, TurbineClusterModelChain
 # --- Module-level variables to cache weather and wind farm setup ---
 _weather_data = None
 _wind_farm = None
-def get_weather_data(filename='weather.csv', datapath=''):
-    file = 'data/weather.csv'
-    weather_df = pd.read_csv(file, index_col=0, header=[0, 1])
-    weather_df.index = pd.to_datetime(weather_df.index, utc=True)
-    weather_df.index = weather_df.index.tz_convert('Europe/Berlin')
-    return weather_df.resample('1h').first().iloc[:480]
+import pandas as pd
 
+import pandas as pd
+
+def get_weather_data(file_20='windatlas_20.csv', file_100='windatlas_100.csv'):
+    """
+    Loads wind speed data from two CSVs (height 20 and 100),
+    and constructs a multi-index DataFrame with dummy pressure, temperature, and roughness_length,
+    where columns have a MultiIndex: (variable_name, height).
+
+    Returns:
+        pd.DataFrame: Hourly weather data with shape (480, 7)
+    """
+    # Read CSVs and skip metadata row
+    df_20 = pd.read_csv(file_20, skiprows=1)
+    df_100 = pd.read_csv(file_100, skiprows=1)
+
+    # Parse datetime and set as index
+    df_20['datetime'] = pd.to_datetime(df_20['datetime'])
+    df_100['datetime'] = pd.to_datetime(df_100['datetime'])
+
+    df_20.set_index('datetime', inplace=True)
+    df_100.set_index('datetime', inplace=True)
+
+    # Rename columns to multi-index format
+    df_20.columns = pd.MultiIndex.from_tuples([('wind_speed', 20)])
+    df_100.columns = pd.MultiIndex.from_tuples([('wind_speed', 100)])
+
+    # Combine wind speeds
+    df = pd.concat([df_20, df_100], axis=1)
+
+    # Add dummy temperature and pressure values
+    df[('temperature', 2)] = 0
+    df[('temperature', 80)] = 0
+    df[('temperature', 10)] = 0  # ✅ Added this to prevent KeyError
+    df[('pressure', 0)] = 0
+    df[('pressure', 10)] = 0
+
+    # Add roughness_length at height 0
+    df[('roughness_length', 0)] = 0.15
+
+    # Sort columns to match desired order
+    df = df[[('pressure', 0), ('temperature', 2), ('wind_speed', 20), ('roughness_length', 0),
+             ('temperature', 10), ('wind_speed', 100), ('temperature', 80)]]
+
+    # Localize and convert time
+    df.index = df.index.tz_localize('UTC').tz_convert('Europe/Berlin')
+
+    # Final formatting
+    df.columns.names = ['variable_name', 'height']
+    return df.resample('1h').first().iloc[:480]
 
 def load_turbine_config(path='configurations/turbine_config.yaml'):
-    """Load YAML turbine configuration."""
+
+    """
+    Load wind turbine configuration from a YAML file.
+
+    Args:
+        path (str): Path to turbine config file
+
+    Returns:
+        list[dict]: List of turbine configuration dictionaries
+    """
     with open(path, 'r') as f:
         config = yaml.safe_load(f)
     return config["wind_turbines"]
 
 
 def collect_turbines(turbine_data: list):
-    """Create a turbine fleet DataFrame compatible with WindFarm."""
+
+    """
+    Build a turbine fleet DataFrame from configuration list.
+
+    Args:
+        turbine_data (list): List of turbine dictionaries
+
+    Returns:
+        pd.DataFrame: DataFrame of WindTurbine objects and their counts
+    """
     fleet = []
     for i, t in enumerate(turbine_data):
         turbine = WindTurbine(
             name=f"turbine_{i}",
             hub_height=t["hub_height"],
-            nominal_power=t["nominal_power"],
-            power_curve=pd.DataFrame({
-                "value": [p * 1000 for p in [1.0, 2.0, 2.1, 5.0, 5.5, 5.0]],
-                "wind_speed": [7.0, 8.5, 9.0, 11.5, 12.0, 15.0]
-            })
+            turbine_type=t["turbine_id"],
         )
         fleet.append({
             "wind_turbine": turbine,
@@ -46,7 +120,18 @@ def collect_turbines(turbine_data: list):
 
 
 def init_wind_farm():
-    """Initializes wind farm and caches data globally."""
+
+    """
+    Initializes and caches the wind farm simulation model.
+
+    Loads:
+    - Weather data
+    - Turbine configuration
+
+    Then:
+    - Builds turbine fleet
+    - Initializes global WindFarm object
+    """
     global _weather_data, _wind_farm
     if _weather_data is None:
         _weather_data = get_weather_data()

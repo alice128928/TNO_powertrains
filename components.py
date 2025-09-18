@@ -9,18 +9,6 @@ from config_setup import delete_config, load_config
 def settings_dialog():
     """Dialog for system configuration settings"""
     st.header("System Configuration")
-    storage_capacity = st.number_input(
-        "Battery storage capacity (Wh)",
-        min_value=0.0,
-        value=st.session_state.get("storage", 0.0),
-        key="dialog_storage"
-    )
-    grid_capacity = st.number_input(
-        "Grid capacity (W)",
-        min_value=0.0,
-        value=st.session_state.get("grid", 0.0),
-        key="dialog_grid"
-    )
     initial_money = st.number_input(
         "Initial budget ($)",
         min_value=0.0,
@@ -49,14 +37,65 @@ def settings_dialog():
     )
 
     if st.button("Save Settings", type="primary"):
-        st.session_state["storage"] = storage_capacity
-        st.session_state["grid"] = grid_capacity
         st.session_state["money"] = initial_money
         st.session_state["price_high"] = price_high
         st.session_state["price_low"] = price_low
         st.session_state["config_name"] = config_name
         st.success("Settings saved!")
         st.rerun()
+
+
+@st.dialog("⚙️ Battery Configuration")
+def battery_dialog():
+    """Dialog for system configuration settings"""
+    st.header("Battery Configuration")
+    storage_capacity = st.number_input(
+        "Battery storage capacity (Wh)",
+        min_value=0.0,
+        value=st.session_state.get("storage", 0.0),
+        key="dialog_storage"
+    )
+
+    if st.button("Save Settings", type="primary"):
+        st.session_state["storage"] = storage_capacity
+        st.success("Settings saved!")
+        st.rerun()
+
+
+@st.dialog("⚙️ Electrical grid Configuration")
+def grid_dialog():
+    """Dialog for system configuration settings"""
+    st.header("Electrical grid Configuration")
+    grid_capacity = st.number_input(
+        "Grid capacity (W)",
+        min_value=0.0,
+        value=st.session_state.get("grid", 0.0),
+        key="dialog_grid"
+    )
+
+    if st.button("Save Settings", type="primary"):
+        st.session_state["grid"] = grid_capacity
+        st.success("Settings saved!")
+        st.rerun()
+
+@st.dialog("⚙️ Additional load Configuration")
+def load_dialog():
+    """Dialog for system configuration settings"""
+    st.header("Load Configuration")
+    add_load = st.number_input(
+        "Load (W)",
+        min_value=0.0,
+        value=st.session_state.get("load", 0.0),
+        key="dialog_load"
+    )
+
+    if st.button("Save Settings", type="primary"):
+        st.session_state["load"] = add_load
+        st.success("Settings saved!")
+        st.rerun()
+
+
+
 
 @st.dialog("🔋 Electric Vehicle Configuration")
 def ev_dialog():
@@ -121,12 +160,16 @@ def ev_dialog():
 
 
 
+
+
+
+
 @st.dialog("💨 Wind Turbine Configuration")
 def wind_dialog():
     """Dialog for wind turbine configuration"""
     st.header("Wind Turbine Data")
     num_turbine_types = st.number_input(
-        "Number of turbine types",
+        "Number of wind farms",
         min_value=1,
         step=1,
         value=st.session_state.get("num_turbine_types", 1),
@@ -135,40 +178,45 @@ def wind_dialog():
 
     turbines = []
     for i in range(int(num_turbine_types)):
-        st.subheader(f"Turbine type {i+1}")
+        st.subheader(f"Turbine farm {i+1}")
         hub_height = st.number_input(
-            f"Hub height (m) for turbine {i+1}",
+            f"Hub height (m) for a turbine in farm {i+1}",
             min_value=0.0,
             value=st.session_state.get(f"hub_{i}", 0.0),
             key=f"dialog_hub_{i}"
         )
-        nominal_power = st.number_input(
-            f"Nominal power (W) for turbine {i+1}",
-            min_value=0.0,
-            value=st.session_state.get(f"power_{i}", 0.0),
-            key=f"dialog_power_{i}"
-        )
+
         number_of_turbines = st.number_input(
-            f"Number of turbines for type {i+1}",
+            f"Number of turbines in farm {i+1}",
             min_value=1,
             step=1,
             value=st.session_state.get(f"count_{i}", 1),
             key=f"dialog_count_{i}"
         )
+        turbine_id = st.text_input(
+            f"Turbine name (e.g., E-126/4200) for farm {i+1}",
+            value=st.session_state.get(f"turbine_id_{i}", ""),
+            key=f"dialog_turbine_id_{i}"
+        )
+
         turbines.append({
             "hub_height": hub_height,
-            "nominal_power": nominal_power,
             "number_of_turbines": number_of_turbines,
+            "turbine_id": turbine_id,
         })
 
     if st.button("Save Wind Configuration", type="primary"):
         st.session_state["num_turbine_types"] = num_turbine_types
         for i in range(int(num_turbine_types)):
             st.session_state[f"hub_{i}"] = st.session_state[f"dialog_hub_{i}"]
-            st.session_state[f"power_{i}"] = st.session_state[f"dialog_power_{i}"]
             st.session_state[f"count_{i}"] = st.session_state[f"dialog_count_{i}"]
+            st.session_state[f"turbine_id_{i}"] = st.session_state[f"dialog_turbine_id_{i}"]
         st.success("Wind turbine configuration saved!")
         st.rerun()
+
+
+
+
 
 
 
@@ -177,7 +225,7 @@ def solar_dialog():
     """Dialog for solar panel configuration"""
     st.header("Solar Panel Data")
     num_solar_types = st.number_input(
-        "Number of solar configurations",
+        "Number of solar farms",
         min_value=1,
         step=1,
         value=st.session_state.get("num_solar_types", 1),
@@ -186,9 +234,9 @@ def solar_dialog():
 
     solar_panels = []
     for i in range(int(num_solar_types)):
-        st.subheader(f"Solar config {i+1}")
+        st.subheader(f"Solar farm {i+1}")
         latitude = st.number_input(
-            f"Latitude (°) for config {i+1}",
+            f"Latitude (°) for panels in farm {i+1}",
             format="%.4f",
             min_value=-180.0,
             max_value=180.0,
@@ -196,7 +244,7 @@ def solar_dialog():
             key=f"dialog_lat_{i}"
         )
         longitude = st.number_input(
-            f"Longitude (°) for config {i+1}",
+            f"Longitude (°) for panels in farm {i+1}",
             format="%.4f",
             min_value=-180.0,
             max_value=180.0,
@@ -204,21 +252,31 @@ def solar_dialog():
             key=f"dialog_lon_{i}"
         )
         altitude = st.number_input(
-            f"Altitude (m) for config {i+1}",
+            f"Altitude (m) for panels in farm {i+1}",
             value=st.session_state.get(f"alt_{i}", 0),
             key=f"dialog_alt_{i}"
         )
         surface_tilt = st.number_input(
-            f"Surface tilt (°) for config {i+1}",
+            f"Surface tilt (°) for panels in farm {i+1}",
             value=st.session_state.get(f"tilt_{i}", 0),
             key=f"dialog_tilt_{i}"
         )
         number_of_panels = st.number_input(
-            f"Number of panels for config {i+1}",
+            f"Number of panels in farm {i+1}",
             min_value=1,
             step=1,
             value=st.session_state.get(f"panels_{i}", 1),
             key=f"dialog_panels_{i}"
+        )
+        module_id = st.text_input(
+            f"Panel name for farm {i+1}",
+            value=st.session_state.get(f"module_id_{i}", ""),
+            key=f"dialog_module_id_{i}"
+        )
+        inverter_id = st.text_input(
+            f"Inverter name for farm {i+1}",
+            value=st.session_state.get(f"inverter_id_{i}", ""),
+            key=f"dialog_inverter_id_{i}"
         )
         solar_panels.append({
             "latitude": latitude,
@@ -226,6 +284,8 @@ def solar_dialog():
             "altitude": altitude,
             "surface_tilt": surface_tilt,
             "number_of_panels": number_of_panels,
+            "module_id": module_id,
+            "inverter_id": inverter_id,
         })
 
 
@@ -237,6 +297,9 @@ def solar_dialog():
             st.session_state[f"alt_{i}"] = st.session_state[f"dialog_alt_{i}"]
             st.session_state[f"tilt_{i}"] = st.session_state[f"dialog_tilt_{i}"]
             st.session_state[f"panels_{i}"] = st.session_state[f"dialog_panels_{i}"]
+            st.session_state[f"inverter_id_{i}"] = st.session_state[f"dialog_inverter_id_{i}"]
+            st.session_state[f"module_id_{i}"] = st.session_state[f"dialog_module_id_{i}"]
+
         st.success("Solar panel configuration saved!")
         st.rerun()
 
@@ -250,8 +313,8 @@ def get_current_values():
     for i in range(int(num_turbine_types)):
         turbines.append({
             "hub_height": st.session_state.get(f"hub_{i}", 0.0),
-            "nominal_power": st.session_state.get(f"power_{i}", 0.0),
             "number_of_turbines": st.session_state.get(f"count_{i}", 1),
+            "turbine_id": st.session_state.get(f"turbine_id_{i}", ""),  # ✅ fixed
         })
 
     # Get solar data
@@ -264,6 +327,9 @@ def get_current_values():
             "altitude": st.session_state.get(f"alt_{i}", 0),
             "surface_tilt": st.session_state.get(f"tilt_{i}", 0),
             "number_of_panels": st.session_state.get(f"panels_{i}", 1),
+            "inverter_id": st.session_state.get(f"inverter_id_{i}", ""),
+            "module_id": st.session_state.get(f"module_id_{i}", ""),
+
         })
 
     # Get EV data
@@ -285,9 +351,11 @@ def get_current_values():
     price_high = st.session_state.get("price_high", 0.000)
     price_low = st.session_state.get("price_low", 0.000)
     config_name = st.session_state.get("config_name", "")
+    add_load = st.session_state.get("load", 0.0)
+
 
     return (turbines, solar_panels, ev_cars, storage_capacity, grid_capacity,
-            initial_money, price_high, price_low, config_name)
+            initial_money, price_high, price_low, config_name,add_load)
 
 
 def create_config_component():

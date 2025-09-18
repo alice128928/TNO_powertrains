@@ -73,7 +73,7 @@ class Manager:
         car_names, battery_caps, charging_ports, availability_arrays, battery_capacity_arrays, status_cars = ev_generate_from_config()
         time_index = 0
         time_steps = int((end_time - start_time) / delta_t)
-
+        print(availability_arrays)
         for time_step in range(time_steps):
             time_clock = start_time + time_step * delta_t
             corresponding_time_in_dataframe = passive_consumer_power_setpoints.index[time_step]
@@ -92,12 +92,13 @@ class Manager:
 
             for i in range(len(status_cars)):
                 status_cars[i][time_index] = ev_state_time[i]
-
+            print(status_cars)
             money, battery, power_set_point, battery_capacity_arrays = self.controller.calculate(
                 status_cars, charging_ports, battery, money_array[time_index], time_index, battery_capacity_arrays,
                 solar_energy_time, wind_energy_time, current_price_time, storage_capacity, grid_capacity,
                 smart_consumer_voltage, power_setpoint_array[time_index], battery_caps, availability_arrays
             )
+            print(battery_capacity_arrays)
             #append all the arrays
             times.append(time_clock)
             smart_consumer_voltage_over_time.append(smart_consumer_voltage)

@@ -35,6 +35,20 @@ def controller_multiple_cars(
     voltage, power_set_point, ev_caps, availability, controller_settings
 ):
     """Main EMS logic for charging multiple EVs, handling energy flows, grid limits, and pricing."""
+    # 🔧 Fix SoC bug: propagate current battery values
+    # ───── Update Non-Charging EVs ─────
+    # ───── Final Update of Battery Capacities ─────
+    # ───── Final Update of Battery Capacities ─────
+    if time_step + 1 < len(battery_capacity[0]):
+        for i in range(len(status)):
+            if status[i][time_step] == 0:
+                battery_capacity[i][time_step + 1] = 0  # EV left, reset battery
+            elif status[i][time_step] == 5:
+                battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]  # Full, no charging
+            elif status[i][time_step] != 1:
+                # In case status is unknown (neither 0, 1, 5), carry over
+                battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]
+            # Note: charging case (1) is handled earlier in the logic
 
     # ───── Load control settings from configuration file ─────
     with open("configurations/controller_add_config.yaml", "r") as f:
@@ -97,9 +111,12 @@ def controller_multiple_cars(
     # --- Case 1: Enough renewable energy to charge directly
     if total_nominal <= total_generated:
         for i in charging_indices:
-            battery_capacity[i][time_step + 1] = min(
-                battery_capacity[i][time_step] + power_charging_port[i], ev_caps[i]
-            )
+            if battery_capacity[i][time_step] < ev_caps[i] - 1e-3:
+                battery_capacity[i][time_step + 1] = min(
+                    battery_capacity[i][time_step] + power_charging_port[i], ev_caps[i]
+                )
+            else:
+                battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]
         power_set_point = total_nominal
 
         # Store excess power if any
@@ -115,9 +132,12 @@ def controller_multiple_cars(
         deficit = total_nominal - total_generated
         storage_obj.discharge(deficit, delta_t)
         for i in charging_indices:
-            battery_capacity[i][time_step + 1] = min(
-                battery_capacity[i][time_step] + power_charging_port[i], ev_caps[i]
-            )
+            if battery_capacity[i][time_step] < ev_caps[i] - 1e-3:
+                battery_capacity[i][time_step + 1] = min(
+                    battery_capacity[i][time_step] + power_charging_port[i], ev_caps[i]
+                )
+            else:
+                battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]
         power_set_point = total_nominal
 
     # --- Case 3: Need renewable + storage + grid
@@ -130,9 +150,12 @@ def controller_multiple_cars(
         money -= grid_used * current_price
 
         for i in charging_indices:
-            battery_capacity[i][time_step + 1] = min(
-                battery_capacity[i][time_step] + power_charging_port[i], ev_caps[i]
-            )
+            if battery_capacity[i][time_step] < ev_caps[i] - 1e-3:
+                battery_capacity[i][time_step + 1] = min(
+                    battery_capacity[i][time_step] + power_charging_port[i], ev_caps[i]
+                )
+            else:
+                battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]
         power_set_point = total_nominal
 
     # --- Case 4: Not enough total power (curtail charging)
@@ -143,20 +166,17 @@ def controller_multiple_cars(
         for i in charging_indices:
             ratio = power_charging_port[i] / total_requested
             allocated = ratio * available_power
-            battery_capacity[i][time_step + 1] = min(
-                battery_capacity[i][time_step] + allocated, ev_caps[i]
-            )
+            if battery_capacity[i][time_step] < ev_caps[i] - 1e-3:
+                battery_capacity[i][time_step + 1] = min(
+                    battery_capacity[i][time_step] +allocated, ev_caps[i]
+                )
+            else:
+                battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]
 
         used_from_storage = min(storage_obj.get_soc(), total_nominal - total_generated)
         storage_obj.discharge(used_from_storage, delta_t)
         money -= grid_capacity * current_price
 
-    # ───── Update Non-Charging EVs ─────
-    for i in range(len(status)):
-        if status[i][time_step] == 0:
-            battery_capacity[i][time_step + 1] = 0
-        elif status[i][time_step] == 5:
-            battery_capacity[i][time_step + 1] = battery_capacity[i][time_step]
 
     # Safety check for unexpected list return
     if isinstance(power_set_point, list):

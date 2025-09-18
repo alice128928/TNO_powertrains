@@ -1,4 +1,4 @@
-# ev_generation.py
+# ev_request.py
 # ----------------
 # This module reads electric vehicle (EV) configuration data from a YAML file and generates:
 # - EV names and IDs
@@ -88,10 +88,10 @@ def ev_generate_from_config(config_path='configurations/ev_config.yaml'):
         # Create daily availability array (2 = not home, 3 = home and available for charging)
         daily_avail = np.full(hours_per_day, 2, dtype=int)
         if arrival_time < departure_time:
-            # e.g., arrives at 18, leaves at 7 (across midnight)
+            # Normal daytime availability
             daily_avail[arrival_time:departure_time] = 3
         else:
-            # Available overnight
+            # Overnight availability
             daily_avail[arrival_time:] = 3
             daily_avail[:departure_time] = 3
 
